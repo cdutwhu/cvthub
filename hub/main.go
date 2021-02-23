@@ -4,6 +4,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/postfinance/single"
 )
 
 var (
@@ -36,7 +38,7 @@ func startSubServers(subSvrFile string) {
 			_, err := exec.Command("/bin/sh", "-c", "cd "+wd+" && ./"+exe).CombinedOutput()
 			switch {
 			case fSf("%v", err) == "exit status 143":
-				fPln(svr, "is shutting down")
+				fPln(svr, "is shutting down...")
 			default:
 				panic("NOT BE HERE!")
 			}
@@ -64,15 +66,21 @@ func closeSubServers() {
 	for _, pid := range pidSubServers() {
 		go func(pid string) {
 			failOnErr("%v @ %v", exec.Command("/bin/sh", "-c", "kill -15 "+pid).Run(), pid)
-			// fPln(pid, "exited")
 		}(pid)
 	}
 	time.Sleep(1 * time.Second)
 }
 
 func main() {
-	defer closeSubServers()
+	one, err := single.New("cvthub", single.WithLockPath("/tmp"))
+	failOnErr("%v", err)
+	failOnErr("%v", one.Lock())
+	defer func() {
+		closeSubServers()
+		failOnErr("%v", one.Unlock())
+		fPln("hub exit")
+	}()
+
 	startSubServers("./subsvr.txt")
-	time.Sleep(5 * time.Second)
-	fPln("hub exit")
+	time.Sleep(60 * time.Second)
 }
