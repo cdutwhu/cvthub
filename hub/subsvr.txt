@@ -1,0 +1,3 @@
+# name | path_of_sub-service_exe_package | exe_name | api_path
+  j2x  | ../sif-json2xml-0-1-6-linux/    | server   | 
+  x2j  | ../sif-xml2json-0-1-8-linux/    | server   |  
