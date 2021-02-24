@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	mSvrAPIPath  = make(map[string]string)
+	mSvrGETPath  = make(map[string]string)
+	mSvrPOSTPath = make(map[string]string)
 	mSvrPkgPath  = make(map[string]string)
 	mSvrExeName  = make(map[string]string)
 	mSvrRedirect = make(map[string]string)
@@ -16,18 +17,23 @@ var (
 func initSubSvr(subSvrFile string) {
 	readLine(subSvrFile, func(ln string) (bool, string) {
 		ln = sTrim(ln, " \t")
-		if sContains(ln, "POST") || sContains(ln, "GET") {
-			ss := sSplit(ln, "|")
-			svr, api, exeDir, exeName, reDir := sTrim(ss[0], " \t"), sTrim(ss[1], " \t"), sTrim(ss[2], " \t"), sTrim(ss[3], " \t"), sTrim(ss[4], " \t")
-			mSvrAPIPath[svr] = api
+		ss := sSplit(ln, "|")
+		svr, api, exeDir, exeName, reDir := "", "", "", "", ""
+		if sContains(ln, "GET") || sContains(ln, "POST") {
+			svr, api, exeDir, exeName, reDir = sTrim(ss[0], " \t"), sTrim(ss[1], " \t"), sTrim(ss[2], " \t"), sTrim(ss[3], " \t"), sTrim(ss[4], " \t")
 			abspath, err := filepath.Abs(exeDir)
 			failOnErr("%v", err)
 			mSvrPkgPath[svr] = "\"" + abspath + "\""
 			mSvrExeName[svr] = exeName
 			mSvrRedirect[svr] = reDir
-			return true, ""
 		}
-		return false, ""
+		switch {
+		case sContains(ln, "GET"):
+			mSvrGETPath[svr] = api
+		case sContains(ln, "POST"):
+			mSvrPOSTPath[svr] = api
+		}
+		return true, ""
 	}, "")
 }
 

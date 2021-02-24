@@ -73,7 +73,7 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 
 	// ------------------------------------------------------------------------------------ //
 
-	routeFun := func(svr string) func(c echo.Context) error {
+	routeFun := func(method, svr string) func(c echo.Context) error {
 		return func(c echo.Context) (err error) {
 			var (
 				status = http.StatusOK
@@ -84,7 +84,17 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 			if ok, paramstr := urlParamStr(c.QueryParams()); ok {
 				url += "?" + paramstr
 			}
-			if resp, err = http.Post(url, "application/json", c.Request().Body); err != nil {
+
+			switch method {
+			case "GET":
+				resp, err = http.Get(url)
+			case "POST":
+				resp, err = http.Post(url, "application/json", c.Request().Body)
+			default:
+				panic("Only Support [GET POST]")
+			}
+
+			if err != nil {
 				ret = []byte(err.Error())
 				status = http.StatusInternalServerError
 				goto ERR_RET
@@ -100,7 +110,11 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 		}
 	}
 
-	for svr, path := range mSvrAPIPath {
-		e.POST(path, routeFun(svr))
-	}	
+	for svr, path := range mSvrGETPath {
+		e.GET(path, routeFun("GET", svr))
+	}
+
+	for svr, path := range mSvrPOSTPath {
+		e.POST(path, routeFun("POST", svr))
+	}
 }

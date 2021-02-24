@@ -1,3 +1,5 @@
-name | api_path      | path_of_sub-service_exe_package | exe_name | redirect                                    | method
-x2j  | /sif-xml2json | ../sif-xml2json-0-1-8-linux/    | server   | http://127.0.0.1:1324/sif-xml2json/convert  | POST
-j2x  | /sif-json2xml | ../sif-json2xml-0-1-6-linux/    | server   | http://127.0.0.1:1325/sif-json2xml/convert  | POST
+name(*)  | api_path           | path_of_sub-service_exe_package | exe_name | redirect                                    | method
+x2j      | /sif-xml2json      | ../sif-xml2json-0-1-8-linux/    | server   | http://127.0.0.1:1324/sif-xml2json/convert  | POST
+x2j-help | /sif-xml2json/help | ../sif-xml2json-0-1-8-linux/    | server   | http://127.0.0.1:1324/                      | GET
+j2x      | /sif-json2xml      | ../sif-json2xml-0-1-6-linux/    | server   | http://127.0.0.1:1325/sif-json2xml/convert  | POST
+j2x-help | /sif-json2xml/help | ../sif-json2xml-0-1-6-linux/    | server   | http://127.0.0.1:1325/                      | GET
