@@ -20,7 +20,9 @@ func initSubSvr(subSvrFile string) {
 			ss := sSplit(ln, "|")
 			svr, api, exeDir, exeName, reDir := sTrim(ss[0], " \t"), sTrim(ss[1], " \t"), sTrim(ss[2], " \t"), sTrim(ss[3], " \t"), sTrim(ss[4], " \t")
 			mSvrAPIPath[svr] = api
-			mSvrPkgPath[svr], _ = filepath.Abs(exeDir)
+			abspath, err := filepath.Abs(exeDir)
+			failOnErr("%v", err)
+			mSvrPkgPath[svr] = "\"" + abspath + "\""
 			mSvrExeName[svr] = exeName
 			mSvrRedirect[svr] = reDir
 			return true, ""
