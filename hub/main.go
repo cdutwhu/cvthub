@@ -68,7 +68,7 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 	e.Logger.SetOutput(os.Stdout)
 	e.Logger.Infof(" ------------------------ e.Logger.Infof ------------------------ ")
 
-	defer e.Start(fSf(":%d", 1323))
+	defer e.Start(fSf(":%d", PORT))
 	// logGrp.Do("Echo Service is Starting ...")
 
 	// ------------------------------------------------------------------------------------ //
@@ -106,7 +106,8 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 			}
 
 		ERR_RET:
-			return c.String(status, string(ret)) // If already JSON String, so return String
+			retStr := editRet(string(ret), svr) // Edit Return "HELP" String
+			return c.String(status, retStr)     // If already JSON String, so return String
 		}
 	}
 
