@@ -15,8 +15,8 @@ var (
 )
 
 func initSubSvr(subSvrFile string) {
-	readLine(subSvrFile, func(ln string) (bool, string) {
-		ln = sTrim(ln, " \t")
+	_, err := readLine(subSvrFile, func(ln string) (bool, string) {
+		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
 		ss := sSplit(ln, "|")
 		svr, api, exeDir, exeName, reDir := "", "", "", "", ""
 		if sContains(ln, "GET") || sContains(ln, "POST") {
@@ -35,6 +35,7 @@ func initSubSvr(subSvrFile string) {
 		}
 		return true, ""
 	}, "")
+	failOnErr("%v", err)
 }
 
 func startSubServers(subSvrFile string) {

@@ -23,7 +23,7 @@ func main() {
 		fPln("hub exit")
 	}()
 
-	startSubServers("./subsvr.txt")
+	startSubServers("./subsvr.md")
 	time.Sleep(1 * time.Second)
 
 	// Start Service
