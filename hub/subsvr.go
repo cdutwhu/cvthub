@@ -4,6 +4,19 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/digisan/gotk/slice/ts"
+)
+
+// table header order
+const (
+	iSvr = iota
+	iAPI
+	iSubSvrDir
+	iExe
+	iRedir
+	iMethod
+	iEnable
 )
 
 var (
@@ -14,17 +27,24 @@ var (
 	mSvrRedirect = make(map[string]string)
 )
 
+func at(items []string, i int) string {
+	return sTrim(items[i], " \t")
+}
+
 func initSubSvr(subSvrFile string) {
-	_, err := readLine(subSvrFile, func(ln string) (bool, string) {
+	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
 		ss := sSplit(ln, "|")
-		svr, api, exeDir, exeName, reDir := "", "", "", "", ""
+		svr, api, ssDir, exe, reDir, enable := "", "", "", "", "", ""
 		if sContains(ln, "GET") || sContains(ln, "POST") {
-			svr, api, exeDir, exeName, reDir = sTrim(ss[0], " \t"), sTrim(ss[1], " \t"), sTrim(ss[2], " \t"), sTrim(ss[3], " \t"), sTrim(ss[4], " \t")
-			abspath, err := filepath.Abs(exeDir)
+			svr, api, ssDir, exe, reDir, enable = at(ss, iSvr), at(ss, iAPI), at(ss, iSubSvrDir), at(ss, iExe), at(ss, iRedir), at(ss, iEnable)
+			if enable != "true" && enable != "TRUE" {
+				return true, ""
+			}
+			abspath, err := filepath.Abs(ssDir)
 			failOnErr("%v", err)
 			mSvrPkgPath[svr] = "\"" + abspath + "\""
-			mSvrExeName[svr] = exeName
+			mSvrExeName[svr] = exe
 			mSvrRedirect[svr] = reDir
 		}
 		switch {
@@ -64,13 +84,7 @@ func pidSubServers() (pidGrp []string) {
 		failOnErr("%v", err)
 		pidGrp = append(pidGrp, sSplit(sTrim(string(out), " \t\r\n"), "\n")...)
 	}
-	// remove duplicated pid
-	m := make(map[string]struct{})
-	for _, pid := range pidGrp {
-		m[pid] = struct{}{}
-	}
-	pidGrp = mapKeys(m).([]string)
-	return
+	return ts.MkSet(pidGrp...)
 }
 
 func closeSubServers() {

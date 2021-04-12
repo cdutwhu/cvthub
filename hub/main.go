@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -26,10 +27,12 @@ func main() {
 	startSubServers("./subsvr.md")
 	time.Sleep(1 * time.Second)
 
+	initRtModifier()
+
 	// Start Service
 	done := make(chan string)
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Kill, os.Interrupt)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go HostHTTPAsync(c, done)
 	<-done
 	// logGrp.Do(<-done)
@@ -106,8 +109,12 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 			}
 
 		ERR_RET:
-			retStr := editRet(string(ret), svr) // Edit Return "HELP" String
-			return c.String(status, retStr)     // If already JSON String, so return String
+			retstr := ""
+			for _, m := range modifiers {
+				retstr = m.ModifyRet(svr, string(ret))
+			}
+
+			return c.String(status, retstr) // If already JSON String, so return String
 		}
 	}
 
