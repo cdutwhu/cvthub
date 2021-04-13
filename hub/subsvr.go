@@ -10,88 +10,94 @@ import (
 
 // table header order
 const (
-	iSvr = iota
+	iService = iota
 	iAPI
-	iSubSvrDir
-	iExe
+	iSvrPath
+	iArgs
 	iRedir
 	iMethod
 	iEnable
 )
 
 var (
+	qSvrExePath  = make([]string, 0)
+	mSvrRedirect = make(map[string]string)
 	mSvrGETPath  = make(map[string]string)
 	mSvrPOSTPath = make(map[string]string)
-	mSvrPkgPath  = make(map[string]string)
-	mSvrExeName  = make(map[string]string)
-	mSvrRedirect = make(map[string]string)
 )
 
 func at(items []string, i int) string {
 	return sTrim(items[i], " \t")
 }
 
-func initSubSvr(subSvrFile string) {
+func loadSvrTable(subSvrFile string) {
+
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
+
 		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
 		ss := sSplit(ln, "|")
-		svr, api, ssDir, exe, reDir, enable := "", "", "", "", "", ""
 		if sContains(ln, "GET") || sContains(ln, "POST") {
-			svr, api, ssDir, exe, reDir, enable = at(ss, iSvr), at(ss, iAPI), at(ss, iSubSvrDir), at(ss, iExe), at(ss, iRedir), at(ss, iEnable)
+
+			service, api, exe, reDir, enable := at(ss, iService), at(ss, iAPI), at(ss, iSvrPath), at(ss, iRedir), at(ss, iEnable)
 			if enable != "true" && enable != "TRUE" {
 				return true, ""
 			}
-			abspath, err := filepath.Abs(ssDir)
+
+			abspath, err := filepath.Abs(exe)
 			failOnErr("%v", err)
-			mSvrPkgPath[svr] = "\"" + abspath + "\""
-			mSvrExeName[svr] = exe
-			mSvrRedirect[svr] = reDir
+			mSvrRedirect[service] = reDir
+			qSvrExePath = ts.MkSet(append(qSvrExePath, abspath)...)
+
+			switch {
+			case sContains(ln, "GET"):
+				mSvrGETPath[service] = api
+			case sContains(ln, "POST"):
+				mSvrPOSTPath[service] = api
+			}
 		}
-		switch {
-		case sContains(ln, "GET"):
-			mSvrGETPath[svr] = api
-		case sContains(ln, "POST"):
-			mSvrPOSTPath[svr] = api
-		}
+
 		return true, ""
 	}, "")
 	failOnErr("%v", err)
 }
 
-func startSubServers(subSvrFile string) {
-	initSubSvr(subSvrFile)
-	for svr, exeDir := range mSvrPkgPath {
-		go func(svr, wd, exe string) {
-			fPln(svr, "is starting...")
-			// failOnErr("%v @ %v", exec.Command("/bin/sh", "-c", "cd "+wd+" && ./"+exe).Run(), svr)
-			_, err := exec.Command("/bin/sh", "-c", "cd "+wd+" && ./"+exe).CombinedOutput()
+func launchServers(subSvrFile string) {
+
+	loadSvrTable(subSvrFile)
+
+	for _, exe := range qSvrExePath {
+		go func(exe string) {
+			fPf("<%s> is starting...\n", exe)
+			_, err := exec.Command("/bin/sh", "-c", exe).CombinedOutput()
 			switch {
 			case fSf("%v", err) == "exit status 143":
-				fPln(svr, "is shutting down...")
+				fPf("<%s> is shutting down...(143)\n", exe)
 			case fSf("%v", err) == "signal: interrupt":
-				fPln(svr, "is shutting down...")
+				fPf("<%s> is shutting down...(int)\n", exe)
 			default:
 				panic("NOT BE HERE! @ " + err.Error())
 			}
-		}(svr, exeDir, mSvrExeName[svr])
+		}(exe)
 	}
 }
 
-func pidSubServers() (pidGrp []string) {
-	for _, name := range mSvrExeName {
+func pidServers() (pidGrp []string) {
+	for _, path := range qSvrExePath {
+		name := filepath.Base(path)
 		cmd := exec.Command("/bin/sh", "-c", "pgrep "+name)
 		out, err := cmd.CombinedOutput()
 		failOnErr("%v", err)
+		fPln(string(out))
 		pidGrp = append(pidGrp, sSplit(sTrim(string(out), " \t\r\n"), "\n")...)
 	}
 	return ts.MkSet(pidGrp...)
 }
 
-func closeSubServers() {
-	for _, pid := range pidSubServers() {
+func closeServers() {
+	for _, pid := range pidServers() {
 		go func(pid string) {
 			failOnErr("%v @ %v", exec.Command("/bin/sh", "-c", "kill -15 "+pid).Run(), pid)
 		}(pid)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 }

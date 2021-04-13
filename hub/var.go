@@ -12,6 +12,7 @@ import (
 var (
 	fSf         = fmt.Sprintf
 	fPln        = fmt.Println
+	fPf         = fmt.Printf
 	sLastIndex  = strings.LastIndex
 	sTrim       = strings.Trim
 	sTrimLeft   = strings.TrimLeft
@@ -27,5 +28,5 @@ var (
 
 const (
 	// PORT : this server port
-	PORT = 1323
+	PORT = 1423
 )

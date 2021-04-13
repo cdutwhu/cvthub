@@ -23,3 +23,7 @@ func (c *SifCvt) ModifyRet(svr, ret string) string {
 	failOnErr("%v", err)
 	return ret
 }
+
+func init() {
+	AddRtModifier(&SifCvt{})
+}

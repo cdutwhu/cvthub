@@ -11,7 +11,3 @@ var (
 func AddRtModifier(m IRtModify) {
 	modifiers = append(modifiers, m)
 }
-
-func initRtModifier() {
-	AddRtModifier(&SifCvt{})
-}
