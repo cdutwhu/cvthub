@@ -10,20 +10,22 @@ import (
 )
 
 var (
-	fSf         = fmt.Sprintf
-	fPln        = fmt.Println
-	fPf         = fmt.Printf
-	sLastIndex  = strings.LastIndex
-	sTrim       = strings.Trim
-	sTrimLeft   = strings.TrimLeft
-	sSplit      = strings.Split
-	sHasPrefix  = strings.HasPrefix
-	sContains   = strings.Contains
-	failOnErr   = fn.FailOnErr
-	scanLine    = io.FileLineScan
-	scanStrLine = io.StrLineScan
-	urlParamStr = net.URLParamStr
-	localIP     = net.LocalIP
+	fSf           = fmt.Sprintf
+	fPln          = fmt.Println
+	fPf           = fmt.Printf
+	fEf           = fmt.Errorf
+	sLastIndex    = strings.LastIndex
+	sTrim         = strings.Trim
+	sTrimLeft     = strings.TrimLeft
+	sSplit        = strings.Split
+	sHasPrefix    = strings.HasPrefix
+	sContains     = strings.Contains
+	failOnErr     = fn.FailOnErr
+	failOnErrWhen = fn.FailOnErrWhen
+	scanLine      = io.FileLineScan
+	scanStrLine   = io.StrLineScan
+	urlParamStr   = net.URLParamStr
+	localIP       = net.LocalIP
 )
 
 const (

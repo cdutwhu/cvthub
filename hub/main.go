@@ -19,13 +19,12 @@ func main() {
 	failOnErr("%v", err)
 	failOnErr("%v", one.Lock())
 	defer func() {
-		closeServers()
+		closeServers(true)
 		failOnErr("%v", one.Unlock())
 		fPln("hub exit")
 	}()
 
-	launchServers("./subsvr.md")
-	time.Sleep(1 * time.Second)
+	time.Sleep(launchServers("./subsvr.md") * time.Millisecond)
 
 	// Start Service
 	done := make(chan string)
