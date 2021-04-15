@@ -29,6 +29,15 @@ var (
 )
 
 const (
-	// PORT : this server port
-	PORT = 1423
+	PORT            = 1423 // PORT : this server port
+	loopInterval    = 200  // Millisecond
+	timeoutStart    = 1    // Second
+	timeoutStartAll = 1    // Second
+	timeoutCloseAll = 10   // Second
+)
+
+var (
+	loopLmtStart    = timeoutStart * 1000 / loopInterval
+	loopLmtStartAll = timeoutStartAll * 1000 / loopInterval
+	loopLmtCloseAll = timeoutCloseAll * 1000 / loopInterval
 )

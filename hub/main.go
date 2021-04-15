@@ -19,18 +19,22 @@ func main() {
 	failOnErr("%v", err)
 	failOnErr("%v", one.Lock())
 	defer func() {
-		closeServers(true)
+		closed := make(chan struct{})
+		go closeServers(true, closed)
+		<-closed
 		failOnErr("%v", one.Unlock())
 		fPln("hub exit")
 	}()
 
-	time.Sleep(launchServers("./subsvr.md") * time.Millisecond)
+	launched := make(chan struct{})
+	go launchServers("./subsvr.md", launched)
+	<-launched
 
 	// Start Service
 	done := make(chan string)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go HostHTTPAsync(c, done)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	go HostHTTPAsync(sig, done)
 	<-done
 	// logGrp.Do(<-done)
 }
