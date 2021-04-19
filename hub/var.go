@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/cdutwhu/debog/fn"
@@ -40,4 +42,22 @@ var (
 	loopLmtStart    = timeoutStart * 1000 / loopInterval
 	loopLmtStartAll = timeoutStartAll * 1000 / loopInterval
 	loopLmtCloseAll = timeoutCloseAll * 1000 / loopInterval
+)
+
+// TODO: put it into github.com/digisan/gotk/io
+var (
+	AbsPath = func(path string, check bool) (string, error) {
+		if sHasPrefix(path, "~/") {
+			user, err := user.Current()
+			failOnErr("%v", err)
+			path = user.HomeDir + path[1:]
+		}
+		abspath, err := filepath.Abs(path)
+		failOnErr("%v", err)
+
+		if check && (!io.DirExists(abspath) && !io.FileExists(abspath)) {
+			return abspath, fEf("%s doesn't exist", abspath)
+		}
+		return abspath, nil
+	}
 )

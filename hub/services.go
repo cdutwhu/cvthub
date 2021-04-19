@@ -13,7 +13,7 @@ import (
 const (
 	iService = iota
 	iAPI
-	iSvrPath
+	iExePath
 	iArgs
 	iRedir
 	iMethod
@@ -22,6 +22,7 @@ const (
 
 var (
 	qSvrExePath  = make([]string, 0)
+	mSvrExeArgs  = make(map[string]string)
 	mutex        = &sync.Mutex{}
 	qSvrPid      = make([]string, 0)
 	qSvrPidExist []string
@@ -40,31 +41,41 @@ func loadSvrTable(subSvrFile string) {
 
 		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
 		ss := sSplit(ln, "|")
-		if sContains(ln, "GET") || sContains(ln, "POST") {
+		service, api, exe, args, reDir, method, enable := at(ss, iService), at(ss, iAPI), at(ss, iExePath), at(ss, iArgs), at(ss, iRedir), at(ss, iMethod), at(ss, iEnable)
 
-			service, api, exe, reDir, enable := at(ss, iService), at(ss, iAPI), at(ss, iSvrPath), at(ss, iRedir), at(ss, iEnable)
-			if enable != "true" && enable != "TRUE" {
-				return true, ""
-			}
-
-			abspath, err := filepath.Abs(exe)
-			failOnErr("%v", err)
-			mSvrRedirect[service] = reDir
-			qSvrExePath = ts.MkSet(append(qSvrExePath, abspath)...)
-
-			switch {
-			case sContains(ln, "GET"):
-				mSvrGETPath[service] = api
-			case sContains(ln, "POST"):
-				mSvrPOSTPath[service] = api
-			}
+		if enable != "true" {
+			return false, ""
 		}
+
+		if exe != "" {
+			exePath, err := AbsPath(exe, true)
+			failOnErr("%v", err)
+			qSvrExePath = ts.MkSet(append(qSvrExePath, exePath)...)
+			mSvrExeArgs[exePath] = args
+		}
+
+		if sHasPrefix(reDir, ":") {
+			reDir = "http://localhost" + reDir
+		}
+		mSvrRedirect[service] = reDir
+
+		switch method {
+		case "GET":
+			mSvrGETPath[service] = api
+		case "POST":
+			mSvrPOSTPath[service] = api
+		default:
+			panic("Only [GET POST] are Supported")
+		}
+
 		return true, ""
 
 	}, "")
+
 	failOnErr("%v", err)
 }
 
+// TODO: put it into github.com/digisan/gotk/
 func GetRunningPID(pathOfExe string) (pidGrp []string) {
 	abspath, err := filepath.Abs(pathOfExe)
 	failOnErr("%v", err)
@@ -92,6 +103,7 @@ func GetRunningPID(pathOfExe string) (pidGrp []string) {
 	return
 }
 
+// TODO: put it into github.com/digisan/gotk/
 func ExistRunningPS(pathOfExe string) bool {
 	return len(GetRunningPID(pathOfExe)) > 0
 }
@@ -119,7 +131,8 @@ func launchServers(subSvrFile string, launched chan<- struct{}) {
 			ok <- struct{}{}
 
 			// start executable
-			cmd := fSf("cd %s && %s", filepath.Dir(exePath), exePath)
+			exeWithArgs := exePath + " " + mSvrExeArgs[exePath]
+			cmd := fSf("cd %s && %s", filepath.Dir(exePath), exeWithArgs)
 			_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 			if err == nil {
 				fPf("<%s> is shutting down...\n", exePath)

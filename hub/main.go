@@ -64,9 +64,10 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 	e.Use(middleware.BodyLimit("2G"))
 	// CORS
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{echo.GET, echo.POST},
 		AllowCredentials: true,
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{echo.GET, echo.HEAD, echo.PUT, echo.PATCH, echo.POST, echo.DELETE},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
 	e.Logger.SetOutput(os.Stdout)

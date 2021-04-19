@@ -1,0 +1,17 @@
+| NAME(\*)             | API                      | PATH_OF_SERVICE_EXE                                                      | ARGUMENTS   | REDIRECT                                        | METHOD | ENABLE |
+| :------------------- | :----------------------- | :----------------------------------------------------------------------- | :---------- | :---------------------------------------------- | :----- | :----- |
+| x2j                  | /sif-xml2json            |                                                                          |             | http://192.168.31.159:1324/sif-xml2json/convert | POST   | false  |
+| x2j-help             | /sif-xml2json/help       |                                                                          |             | http://192.168.31.159:1324/                     | GET    | false  |
+| j2x                  | /sif-json2xml            |                                                                          |             | http://192.168.31.159:1325/sif-json2xml/convert | POST   | false  |
+| j2x-help             | /sif-json2xml/help       |                                                                          |             | http://192.168.31.159:1325/                     | GET    | false  |
+| n3-admin-nc          | /n3/admin/newdemocontext | ~/Desktop/n3/n3-web/server/n3w/n3w                                       |             | :1323/admin/newdemocontext                      | POST   | true   |
+| n3-graphgl           | /n3/graphgl              |                                                                          |             | :1323/n3/graphgl                                | POST   | true   |
+| n3-publish           | /n3/publish              |                                                                          |             | :1323/n3/publish                                | POST   | true   |
+| otf-classify-align-p | /classifier/align        | ~/Desktop/OTF/otf-classifier/build/Linux64/otf-classifier/otf-classifier |             | :1576/align                                     | POST   | true   |
+| otf-classify-align-g | /classifier/align        |                                                                          |             | :1576/align                                     | GET    | true   |
+| otf-classify-lookup  | /classifier/lookup       |                                                                          |             | :1576/lookup                                    | GET    | true   |
+| otf-classify-index   | /classifier/index        |                                                                          |             | :1576/index                                     | GET    | true   |
+| otf-align-g          | /aligner                 | ~/Desktop/OTF/otf-align/cmd/otf-align/otf-align                          | --port=1324 | :1324/                                          | GET    | true   |
+| otf-align-p          | /aligner/align           |                                                                          |             | :1324/align                                     | POST   | true   |
+| otf-level-g          | /leveler                 | ~/Desktop/OTF/otf-level/cmd/otf-level/otf-level                          | --port=1327 | :1327/                                          | GET    | true   |
+| otf-level-p          | /leveler/level           |                                                                          |             | :1327/level                                     | POST   | true   |
