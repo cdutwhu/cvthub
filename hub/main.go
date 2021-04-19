@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	one, err := single.New("cvthub", single.WithLockPath("/tmp"))
+	one, err := single.New("hub", single.WithLockPath("/tmp"))
 	failOnErr("%v", err)
 	failOnErr("%v", one.Lock())
 	defer func() {
@@ -27,7 +27,7 @@ func main() {
 	}()
 
 	launched := make(chan struct{})
-	go launchServers("./subsvr.md", launched)
+	go launchServers("./services.md", launched)
 	<-launched
 
 	// Start Service
