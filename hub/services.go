@@ -37,8 +37,8 @@ func loadSvrTable(subSvrFile string) {
 
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
-		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
-		ss := sSplit(ln, "|")
+		ss := sSplit(sTrim(ln, "|"), "|") // remove markdown table left & right '|', then split by '|'
+		failOnErrWhen(len(ss) != 6, "%v", "services.md must be 6 columns, check it")
 		api, exe, args, reDir, method, enable := at(ss, iAPI), at(ss, iExePath), at(ss, iArgs), at(ss, iRedir), at(ss, iMethod), at(ss, iEnable)
 
 		if enable != "true" {
@@ -52,17 +52,18 @@ func loadSvrTable(subSvrFile string) {
 			mSvrExeArgs[exePath] = args
 		}
 
-		if sHasPrefix(reDir, ":") {
-			reDir = "http://localhost" + reDir
-		}
-
-		switch method {
-		case "GET":
-			mApiReDirGET[api] = reDir
-		case "POST":
-			mApiReDirPOST[api] = reDir
-		default:
-			panic("Only [GET POST] are Supported")
+		if api != "" {
+			if sHasPrefix(reDir, ":") {
+				reDir = "http://localhost" + reDir
+			}
+			switch method {
+			case "GET":
+				mApiReDirGET[api] = reDir
+			case "POST":
+				mApiReDirPOST[api] = reDir
+			default:
+				panic("Only [GET POST] are Supported")
+			}
 		}
 
 		return true, ""

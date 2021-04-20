@@ -1,5 +1,6 @@
 | API                      | PATH_OF_SERVICE_EXE                                                      | ARGUMENTS   | REDIRECT                                        | METHOD | ENABLE |
 | :----------------------- | :----------------------------------------------------------------------- | :---------- | :---------------------------------------------- | :----- | :----- |
+|                          | ~/Desktop/OTF/otf-reader/cmd/otf-reader/otf-reader                       |             |                                                 |        | false  |
 | /sif-xml2json            |                                                                          |             | http://192.168.31.159:1324/sif-xml2json/convert | POST   | false  |
 | /sif-xml2json/help       |                                                                          |             | http://192.168.31.159:1324/                     | GET    | false  |
 | /sif-json2xml            |                                                                          |             | http://192.168.31.159:1325/sif-json2xml/convert | POST   | false  |
