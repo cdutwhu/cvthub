@@ -1,7 +1,7 @@
 package main
 
 type IRtModify interface {
-	ModifyRet(svr, ret string) string
+	ModifyRet(api, ret string) string
 }
 
 var (
@@ -11,3 +11,7 @@ var (
 func AddRtModifier(m IRtModify) {
 	modifiers = append(modifiers, m)
 }
+
+// func init() {
+// 	AddRtModifier(IRtModify)
+// }

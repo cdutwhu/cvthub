@@ -78,25 +78,25 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 
 	// ------------------------------------------------------------------------------------ //
 
-	routeFun := func(method, svr string) func(c echo.Context) error {
+	routeFun := func(method, api, reDir string) func(c echo.Context) error {
 		return func(c echo.Context) (err error) {
 			var (
 				status = http.StatusOK
 				resp   *http.Response
 				ret    []byte
-				url    = mSvrRedirect[svr]
 			)
+
 			if ok, paramstr := urlParamStr(c.QueryParams()); ok {
-				url += "?" + paramstr
+				reDir += "?" + paramstr
 			}
 
 			switch method {
 			case "GET":
-				resp, err = http.Get(url)
+				resp, err = http.Get(reDir)
 			case "POST":
-				resp, err = http.Post(url, "application/json", c.Request().Body)
+				resp, err = http.Post(reDir, "application/json", c.Request().Body)
 			default:
-				panic("Only Support [GET POST]")
+				panic("Currently, Only Support [GET POST]")
 			}
 
 			if err != nil {
@@ -113,18 +113,19 @@ func HostHTTPAsync(sig <-chan os.Signal, done chan<- string) {
 		ERR_RET:
 			retstr := ""
 			for _, m := range modifiers {
-				retstr = m.ModifyRet(svr, string(ret))
+				retstr = m.ModifyRet(api, string(ret))
 			}
 
 			return c.String(status, retstr) // If already JSON String, so return String
 		}
 	}
 
-	for svr, path := range mSvrGETPath {
-		e.GET(path, routeFun("GET", svr))
+	for api, reDir := range mApiReDirGET {
+		e.GET(api, routeFun("GET", api, reDir))
 	}
 
-	for svr, path := range mSvrPOSTPath {
-		e.POST(path, routeFun("POST", svr))
+	for api, reDir := range mApiReDirPOST {
+		e.POST(api, routeFun("POST", api, reDir))
 	}
+
 }

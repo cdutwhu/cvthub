@@ -11,8 +11,7 @@ import (
 
 // table header order
 const (
-	iService = iota
-	iAPI
+	iAPI = iota
 	iExePath
 	iArgs
 	iRedir
@@ -21,14 +20,13 @@ const (
 )
 
 var (
-	qSvrExePath  = make([]string, 0)
-	mSvrExeArgs  = make(map[string]string)
-	mutex        = &sync.Mutex{}
-	qSvrPid      = make([]string, 0)
-	qSvrPidExist []string
-	mSvrRedirect = make(map[string]string)
-	mSvrGETPath  = make(map[string]string)
-	mSvrPOSTPath = make(map[string]string)
+	qSvrExePath   = make([]string, 0)
+	mSvrExeArgs   = make(map[string]string)
+	mutex         = &sync.Mutex{}
+	qSvrPid       = make([]string, 0)
+	qSvrPidExist  []string
+	mApiReDirGET  = make(map[string]string)
+	mApiReDirPOST = make(map[string]string)
 )
 
 func at(items []string, i int) string {
@@ -41,7 +39,7 @@ func loadSvrTable(subSvrFile string) {
 
 		ln = sTrim(ln, " \t|") // also remove markdown table left & right '|'
 		ss := sSplit(ln, "|")
-		service, api, exe, args, reDir, method, enable := at(ss, iService), at(ss, iAPI), at(ss, iExePath), at(ss, iArgs), at(ss, iRedir), at(ss, iMethod), at(ss, iEnable)
+		api, exe, args, reDir, method, enable := at(ss, iAPI), at(ss, iExePath), at(ss, iArgs), at(ss, iRedir), at(ss, iMethod), at(ss, iEnable)
 
 		if enable != "true" {
 			return false, ""
@@ -57,13 +55,12 @@ func loadSvrTable(subSvrFile string) {
 		if sHasPrefix(reDir, ":") {
 			reDir = "http://localhost" + reDir
 		}
-		mSvrRedirect[service] = reDir
 
 		switch method {
 		case "GET":
-			mSvrGETPath[service] = api
+			mApiReDirGET[api] = reDir
 		case "POST":
-			mSvrPOSTPath[service] = api
+			mApiReDirPOST[api] = reDir
 		default:
 			panic("Only [GET POST] are Supported")
 		}
