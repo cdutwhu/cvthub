@@ -22,11 +22,10 @@ const (
 )
 
 var (
-	qSvrExePath   = make([]string, 0)
-	mSvrExeArgs   = make(map[string]string)
+	qSvrExePath   = make([]string, 0) // server may be repeated
+	qSvrExeArgs   = make([]string, 0)
 	mutex         = &sync.Mutex{}
 	qSvrPid       = make([]string, 0)
-	qSvrPidExist  []string
 	mApiReDirGET  = make(map[string]string)
 	mApiReDirPOST = make(map[string]string)
 )
@@ -50,8 +49,8 @@ func loadSvrTable(subSvrFile string) {
 		if exe != "" {
 			exePath, err := io.AbsPath(exe, true)
 			failOnErr("%v", err)
-			qSvrExePath = ts.MkSet(append(qSvrExePath, exePath)...)
-			mSvrExeArgs[exePath] = args
+			qSvrExePath = append(qSvrExePath, exePath) // same executable could be started multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
+			qSvrExeArgs = append(qSvrExeArgs, args)
 		}
 
 		if api != "" {
@@ -75,30 +74,33 @@ func loadSvrTable(subSvrFile string) {
 	failOnErr("%v", err)
 }
 
-func launchServers(subSvrFile string, launched chan<- struct{}) {
+func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{}) {
 
 	loadSvrTable(subSvrFile)
 
-	for _, exePath := range qSvrExePath {
+	for i, exePath := range qSvrExePath {
+		time.Sleep(80 * time.Millisecond) // if no sleep, simultaneously start same executable may fail.
 
 		ok := make(chan struct{})
 
 		// start executable
-		go func(exePath string) {
+		go func(i int, exePath string) {
 			fPf("<%s> is starting...\n", exePath)
 
-			// check existing PS
-			if qSvrPidExist = proc.GetRunningPID(exePath); len(qSvrPidExist) > 0 {
-				closed := make(chan struct{})
-				go closeServers(false, closed)
-				<-closed
-				failOnErr("%v", fEf("%v exists", exePath))
+			// check existing running PS
+			if chkRunning {
+				if qPidRunning := proc.GetRunningPID(exePath); len(qPidRunning) > 0 {
+					closed := make(chan struct{})
+					go closeServers(false, closed)
+					<-closed
+					failOnErr("%v", fEf("%v exists", exePath))
+				}
 			}
 
 			ok <- struct{}{}
 
 			// start executable
-			exeWithArgs := exePath + " " + mSvrExeArgs[exePath]
+			exeWithArgs := exePath + " " + qSvrExeArgs[i]
 			cmd := fSf("cd %s && %s", filepath.Dir(exePath), exeWithArgs)
 			_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 			if err == nil {
@@ -113,7 +115,7 @@ func launchServers(subSvrFile string, launched chan<- struct{}) {
 				panic(fSf("<%s> cannot be started @Error: %v", exePath, err.Error()))
 			}
 
-		}(exePath)
+		}(i, exePath)
 
 		// collect PID
 		go func(exePath string) {
@@ -123,7 +125,7 @@ func launchServers(subSvrFile string, launched chan<- struct{}) {
 				time.Sleep(loopInterval * time.Millisecond)
 				if pidGrp := proc.GetRunningPID(exePath); pidGrp != nil {
 					mutex.Lock()
-					qSvrPid = append(qSvrPid, pidGrp...)
+					qSvrPid = ts.MkSet(append(qSvrPid, pidGrp...)...)
 					mutex.Unlock()
 					break
 				}
@@ -174,6 +176,8 @@ func closeServers(check bool, closed chan<- struct{}) {
 	}()
 
 	for _, pid := range qSvrPid {
+		time.Sleep(20 * time.Millisecond)
+
 		go func(pid string) {
 			cmd := fSf("kill -15 %s", pid)
 			err := exec.Command("/bin/sh", "-c", cmd).Run()
