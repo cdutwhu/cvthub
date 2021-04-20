@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/digisan/gotk/io"
+	proc "github.com/digisan/gotk/process"
 	"github.com/digisan/gotk/slice/ts"
 )
 
@@ -46,7 +48,7 @@ func loadSvrTable(subSvrFile string) {
 		}
 
 		if exe != "" {
-			exePath, err := AbsPath(exe, true)
+			exePath, err := io.AbsPath(exe, true)
 			failOnErr("%v", err)
 			qSvrExePath = ts.MkSet(append(qSvrExePath, exePath)...)
 			mSvrExeArgs[exePath] = args
@@ -73,39 +75,6 @@ func loadSvrTable(subSvrFile string) {
 	failOnErr("%v", err)
 }
 
-// TODO: put it into github.com/digisan/gotk/
-func GetRunningPID(pathOfExe string) (pidGrp []string) {
-	abspath, err := filepath.Abs(pathOfExe)
-	failOnErr("%v", err)
-	dir, exe := filepath.Dir(abspath), filepath.Base(abspath)
-	out, err := exec.Command("/bin/sh", "-c", "pgrep "+exe).CombinedOutput()
-	if fSf("%v", err) == "exit status 1" {
-		return
-	}
-	failOnErr("%v", err)
-
-	outstr := sTrim(string(out), " \t\r\n")
-	for _, pid := range sSplit(outstr, "\n") {
-		out, err := exec.Command("/bin/sh", "-c", "pwdx "+pid).CombinedOutput()
-		if fSf("%v", err) == "exit status 1" {
-			return
-		}
-		failOnErr("%v", err)
-
-		outstr := sTrim(string(out), " \t\r\n")
-		procpath := sSplit(outstr, ": ")[1]
-		if dir == procpath {
-			pidGrp = append(pidGrp, pid)
-		}
-	}
-	return
-}
-
-// TODO: put it into github.com/digisan/gotk/
-func ExistRunningPS(pathOfExe string) bool {
-	return len(GetRunningPID(pathOfExe)) > 0
-}
-
 func launchServers(subSvrFile string, launched chan<- struct{}) {
 
 	loadSvrTable(subSvrFile)
@@ -119,7 +88,7 @@ func launchServers(subSvrFile string, launched chan<- struct{}) {
 			fPf("<%s> is starting...\n", exePath)
 
 			// check existing PS
-			if qSvrPidExist = GetRunningPID(exePath); len(qSvrPidExist) > 0 {
+			if qSvrPidExist = proc.GetRunningPID(exePath); len(qSvrPidExist) > 0 {
 				closed := make(chan struct{})
 				go closeServers(false, closed)
 				<-closed
@@ -152,7 +121,7 @@ func launchServers(subSvrFile string, launched chan<- struct{}) {
 			I := 0
 			for {
 				time.Sleep(loopInterval * time.Millisecond)
-				if pidGrp := GetRunningPID(exePath); pidGrp != nil {
+				if pidGrp := proc.GetRunningPID(exePath); pidGrp != nil {
 					mutex.Lock()
 					qSvrPid = append(qSvrPid, pidGrp...)
 					mutex.Unlock()
@@ -187,7 +156,7 @@ func closeServers(check bool, closed chan<- struct{}) {
 			LOOP:
 				for {
 					for _, exePath := range qSvrExePath {
-						if ExistRunningPS(exePath) {
+						if proc.ExistRunningPS(exePath) {
 							time.Sleep(loopInterval * time.Millisecond)
 							I++
 							failOnErrWhen(I > loopLmtCloseAll, "%v", fEf("Cannot close all servers in %d(s)", timeoutCloseAll))
