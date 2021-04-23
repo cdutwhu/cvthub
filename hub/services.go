@@ -3,6 +3,7 @@ package main
 import (
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,19 +14,21 @@ import (
 
 // table header order
 const (
-	iAPI = iota
-	iExePath
+	iExePath = iota
 	iArgs
+	iDelay
+	iAPI
 	iRedir
 	iMethod
 	iEnable
 )
 
 var (
-	qSvrExePath   = make([]string, 0) // server may be repeated
-	qSvrExeArgs   = make([]string, 0)
+	qExePath      = make([]string, 0) // server may be repeated
+	qExeArgs      = make([]string, 0)
+	qStartDelay   = make([]int, 0)
 	mutex         = &sync.Mutex{}
-	qSvrPid       = make([]string, 0)
+	qPid          = make([]string, 0)
 	mApiReDirGET  = make(map[string]string)
 	mApiReDirPOST = make(map[string]string)
 )
@@ -39,8 +42,17 @@ func loadSvrTable(subSvrFile string) {
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
 		ss := sSplit(sTrim(ln, "|"), "|") // remove markdown table left & right '|', then split by '|'
-		failOnErrWhen(len(ss) != 6, "%v", "services.md must be 6 columns, check it")
-		api, exe, args, reDir, method, enable := at(ss, iAPI), at(ss, iExePath), at(ss, iArgs), at(ss, iRedir), at(ss, iMethod), at(ss, iEnable)
+		failOnErrWhen(len(ss) != 7, "%v", "services.md must be 7 columns, check it")
+
+		var (
+			exe    = at(ss, iExePath)
+			args   = at(ss, iArgs)
+			delay  = at(ss, iDelay)
+			api    = at(ss, iAPI)
+			reDir  = at(ss, iRedir)
+			method = at(ss, iMethod)
+			enable = at(ss, iEnable)
+		)
 
 		if enable != "true" {
 			return false, ""
@@ -49,8 +61,13 @@ func loadSvrTable(subSvrFile string) {
 		if exe != "" {
 			exePath, err := io.AbsPath(exe, true)
 			failOnErr("%v", err)
-			qSvrExePath = append(qSvrExePath, exePath) // same executable could be started multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
-			qSvrExeArgs = append(qSvrExeArgs, args)
+			qExePath = append(qExePath, exePath) // same executable could be started multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
+			qExeArgs = append(qExeArgs, args)
+			nDelay, err := strconv.Atoi(delay)
+			if err != nil {
+				nDelay = 0
+			}
+			qStartDelay = append(qStartDelay, nDelay)
 		}
 
 		if api != "" {
@@ -78,13 +95,14 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 
 	loadSvrTable(subSvrFile)
 
-	for i, exePath := range qSvrExePath {
+	for i, exePath := range qExePath {
 		time.Sleep(80 * time.Millisecond) // if no sleep, simultaneously start same executable may fail.
 
 		ok := make(chan struct{})
 
 		// start executable
 		go func(i int, exePath string) {
+			time.Sleep(time.Duration(qStartDelay[i]) * time.Second)
 			fPf("<%s> is starting...\n", exePath)
 
 			// check existing running PS
@@ -100,9 +118,12 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			ok <- struct{}{}
 
 			// start executable
-			exeWithArgs := exePath + " " + qSvrExeArgs[i]
-			cmd := fSf("cd %s && %s", filepath.Dir(exePath), exeWithArgs)
-			_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+			cmdstr := fSf("cd %s && %s %s", filepath.Dir(exePath), exePath, qExeArgs[i])
+			cmd := exec.Command("/bin/sh", "-c", cmdstr)
+			_, err := cmd.CombinedOutput()
+
+			// fPln(cmd.Process.Pid)
+
 			if err == nil {
 				fPf("<%s> is shutting down...\n", exePath)
 				return
@@ -123,14 +144,15 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			I := 0
 			for {
 				time.Sleep(loopInterval * time.Millisecond)
-				if pidGrp := proc.GetRunningPID(exePath); pidGrp != nil {
+				if pidGrp := proc.GetRunningPID(exePath); len(pidGrp) > 0 {
 					mutex.Lock()
-					qSvrPid = ts.MkSet(append(qSvrPid, pidGrp...)...)
+					qPid = ts.MkSet(append(qPid, pidGrp...)...)
+					fPf("<%s> is running...\n", exePath)
 					mutex.Unlock()
 					break
 				}
 				I++
-				failOnErrWhen(I > loopLmtStart, "%v", fEf("Cannot start server @ <%s> in %d(s)", exePath, timeoutStart))
+				failOnErrWhen(I > loopLmtStart, "%v", fEf("Cannot start <%s> as service in %d(s)", exePath, timeoutStart))
 			}
 		}(exePath)
 	}
@@ -139,7 +161,7 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 		I := 0
 		for {
 			time.Sleep(loopInterval * time.Millisecond)
-			if len(qSvrExePath) == len(qSvrPid) {
+			if len(qExePath) == len(qPid) {
 				launched <- struct{}{}
 				break
 			}
@@ -157,7 +179,7 @@ func closeServers(check bool, closed chan<- struct{}) {
 				I := 0
 			LOOP:
 				for {
-					for _, exePath := range qSvrExePath {
+					for _, exePath := range qExePath {
 						if proc.ExistRunningPS(exePath) {
 							time.Sleep(loopInterval * time.Millisecond)
 							I++
@@ -175,22 +197,22 @@ func closeServers(check bool, closed chan<- struct{}) {
 		}
 	}()
 
-	for _, pid := range qSvrPid {
+	for _, pid := range qPid {
 		time.Sleep(20 * time.Millisecond)
 
 		go func(pid string) {
-			cmd := fSf("kill -15 %s", pid)
-			err := exec.Command("/bin/sh", "-c", cmd).Run()
+			cmdstr := fSf("kill -15 %s", pid)
+			err := exec.Command("/bin/sh", "-c", cmdstr).Run()
 			if err == nil {
-				fPf("<%s> is shutting down...\n", pid)
+				fPf("PID<%s> is shutting down...\n", pid)
 				return
 			}
 			msg := fSf("%v", err)
 			switch msg {
 			case "exit status 1":
-				fPf("<%s> is shutting down...<%s>\n", pid, msg)
+				fPf("PID<%s> is shutting down...<%s>\n", pid, msg)
 			default:
-				panic(fSf("<%s> shutdown error @Error: %v", pid, err))
+				panic(fSf("PID<%s> shutdown error @Error: %v", pid, err))
 			}
 
 		}(pid)
