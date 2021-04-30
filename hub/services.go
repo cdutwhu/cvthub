@@ -59,9 +59,9 @@ func loadSvrTable(subSvrFile string) {
 		}
 
 		if exe != "" {
-			exePath, err := io.AbsPath(exe, true)
+			exePath, err := io.AbsPath(exe, true) // validate each executable
 			failOnErr("%v", err)
-			qExePath = append(qExePath, exePath) // same executable could be started multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
+			qExePath = append(qExePath, exePath) // same executable could be invoked multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
 			qExeArgs = append(qExeArgs, args)
 			nDelay, err := strconv.Atoi(delay)
 			if err != nil {
@@ -69,6 +69,9 @@ func loadSvrTable(subSvrFile string) {
 			}
 			qStartDelay = append(qStartDelay, nDelay)
 		}
+
+		// validate qExePath (already done)
+		// failOnErrWhen(!io.FilesAllExist(qExePath), "%v", fEf("Not All Executables Are In Valid Path"))
 
 		if api != "" {
 			if sHasPrefix(reDir, ":") {
