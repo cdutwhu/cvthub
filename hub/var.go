@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/cdutwhu/debog/fn"
@@ -12,7 +13,6 @@ import (
 var (
 	fSf           = fmt.Sprintf
 	fPln          = fmt.Println
-	fPf           = fmt.Printf
 	fEf           = fmt.Errorf
 	sLastIndex    = strings.LastIndex
 	sTrim         = strings.Trim
@@ -21,6 +21,9 @@ var (
 	sHasPrefix    = strings.HasPrefix
 	failOnErr     = fn.FailOnErr
 	failOnErrWhen = fn.FailOnErrWhen
+	warnOnErr     = fn.WarnOnErr
+	warnOnErrWhen = fn.WarnOnErrWhen
+	info          = fn.Logger
 	scanLine      = io.FileLineScan
 	scanStrLine   = io.StrLineScan
 	urlParamStr   = net.URLParamStr
@@ -30,13 +33,17 @@ var (
 const (
 	PORT            = 1423 // PORT : this server port
 	loopInterval    = 200  // Millisecond
-	timeoutStart    = 6    // Second
+	timeoutStartOne = 6    // Second
 	timeoutStartAll = 10   // Second
 	timeoutCloseAll = 10   // Second
 )
 
 var (
-	loopLmtStart    = timeoutStart * 1000 / loopInterval
+	loopLmtStartOne = timeoutStartOne * 1000 / loopInterval
 	loopLmtStartAll = timeoutStartAll * 1000 / loopInterval
 	loopLmtCloseAll = timeoutCloseAll * 1000 / loopInterval
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags) // overwrite "info/warn/fail" print style
+}

@@ -23,7 +23,7 @@ func main() {
 		go closeServers(true, closed)
 		<-closed
 		failOnErr("%v", one.Unlock())
-		fPln("hub exit")
+		fPln("Hub Exited")
 	}()
 
 	launched := make(chan struct{})

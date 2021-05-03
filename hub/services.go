@@ -106,7 +106,7 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 		// start executable
 		go func(i int, exePath string) {
 			time.Sleep(time.Duration(qStartDelay[i]) * time.Second)
-			fPf("<%s> is starting...\n", exePath)
+			info("<%s> is starting...", exePath)
 
 			// check existing running PS
 			if chkRunning {
@@ -128,13 +128,13 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			// fPln(cmd.Process.Pid)
 
 			if err == nil {
-				fPf("<%s> is shutting down...\n", exePath)
+				info("<%s> is shutting down...", exePath)
 				return
 			}
 			msg := fSf("%v", err)
 			switch msg {
 			case "exit status 1", "exit status 143", "signal: interrupt":
-				fPf("<%s> is shutting down...<%s>\n", exePath, msg)
+				info("<%s> is shutting down...<%s>", exePath, msg)
 			default:
 				panic(fSf("<%s> cannot be started @Error: %v", exePath, err.Error()))
 			}
@@ -150,12 +150,12 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 				if pidGrp := proc.GetRunningPID(exePath); len(pidGrp) > 0 {
 					mutex.Lock()
 					qPid = ts.MkSet(append(qPid, pidGrp...)...)
-					fPf("<%s> is running...\n", exePath)
+					info("<%s> is running...", exePath)
 					mutex.Unlock()
 					break
 				}
 				I++
-				failOnErrWhen(I > loopLmtStart, "%v", fEf("Cannot start <%s> as service in %d(s)", exePath, timeoutStart))
+				warnOnErrWhen(I > loopLmtStartOne, "%v", fEf("Cannot start <%s> as service in %d(s)", exePath, timeoutStartOne))
 			}
 		}(exePath)
 	}
@@ -169,7 +169,13 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 				break
 			}
 			I++
-			failOnErrWhen(I > loopLmtStartAll, "%v", fEf("Cannot start all servers in %d(s)", timeoutStartAll))
+			if I > loopLmtStartAll {
+				warnOnErr("%v", fEf("Cannot successfully start all services in %d(s), Closing All Services...", timeoutStartAll))
+				closed := make(chan struct{})
+				go closeServers(false, closed)
+				<-closed
+				failOnErr("%v", fEf("Hub exited as NOT all services can run successfully..."))
+			}
 		}
 	}()
 }
@@ -207,13 +213,13 @@ func closeServers(check bool, closed chan<- struct{}) {
 			cmdstr := fSf("kill -15 %s", pid)
 			err := exec.Command("/bin/sh", "-c", cmdstr).Run()
 			if err == nil {
-				fPf("PID<%s> is shutting down...\n", pid)
+				info("PID<%s> is shutting down...", pid)
 				return
 			}
 			msg := fSf("%v", err)
 			switch msg {
 			case "exit status 1":
-				fPf("PID<%s> is shutting down...<%s>\n", pid, msg)
+				info("PID<%s> is shutting down...<%s>", pid, msg)
 			default:
 				panic(fSf("PID<%s> shutdown error @Error: %v", pid, err))
 			}
