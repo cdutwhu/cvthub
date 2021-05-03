@@ -98,6 +98,8 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 
 	loadSvrTable(subSvrFile)
 
+	chStartErr := make(chan error, len(qExePath))
+
 	for i, exePath := range qExePath {
 		time.Sleep(80 * time.Millisecond) // if no sleep, simultaneously start same executable may fail.
 
@@ -136,7 +138,7 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			case "exit status 1", "exit status 143", "signal: interrupt":
 				info("<%s> is shutting down...<%s>", exePath, msg)
 			default:
-				panic(fSf("<%s> cannot be started @Error: %v", exePath, err.Error()))
+				chStartErr <- fEf("<%s> cannot be started @error: %v", exePath, err)
 			}
 
 		}(i, exePath)
@@ -155,7 +157,9 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 					break
 				}
 				I++
-				warnOnErrWhen(I > loopLmtStartOne, "%v", fEf("Cannot start <%s> as service in %d(s)", exePath, timeoutStartOne))
+				if I > loopLmtStartOne {
+					chStartErr <- fEf("Cannot start <%s> as service in %d(s)", exePath, timeoutStartOne)
+				}
 			}
 		}(exePath)
 	}
@@ -170,14 +174,23 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			}
 			I++
 			if I > loopLmtStartAll {
-				warnOnErr("%v", fEf("Cannot successfully start all services in %d(s), Closing All Services...", timeoutStartAll))
-				closed := make(chan struct{})
-				go closeServers(false, closed)
-				<-closed
-				failOnErr("%v", fEf("Hub exited as NOT all services can run successfully..."))
+				chStartErr <- fEf("Cannot successfully start all services in %d(s)", timeoutStartAll)
 			}
 		}
 	}()
+
+	time.Sleep(1 * time.Second)
+
+	select {
+	case msg := <-chStartErr:
+		warnOnErr("%v", msg)
+		closed := make(chan struct{})
+		go closeServers(false, closed)
+		<-closed
+		failOnErr("Hub Abort as: %v", msg)
+	case <-time.After(timeoutCloseAll * time.Second):
+		info("No Services Starting Errors Detected in %d(s)", timeoutCloseAll)
+	}
 }
 
 func closeServers(check bool, closed chan<- struct{}) {
