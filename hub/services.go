@@ -83,7 +83,7 @@ func loadSvrTable(subSvrFile string) {
 			case "POST":
 				mApiReDirPOST[api] = reDir
 			default:
-				panic("Only [GET POST] are Supported")
+				failOnErr("%v", fEf("Only [GET POST] are supported, check mark-down table config"))
 			}
 		}
 
@@ -244,7 +244,7 @@ func closeServers(check bool, closed chan<- struct{}) {
 			case "exit status 1":
 				info("PID<%s> is shutting down...<%s>", pid, msg)
 			default:
-				panic(fSf("PID<%s> shutdown error @Error: %v", pid, err))
+				failOnErr("PID<%s> shutdown error @Error: %v", pid, err)
 			}
 
 		}(pid)
