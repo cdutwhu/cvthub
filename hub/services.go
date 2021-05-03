@@ -127,8 +127,9 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			cmd := exec.Command("/bin/sh", "-c", cmdstr)
 			_, err := cmd.CombinedOutput()
 
-			// fPln(cmd.Process.Pid)
+			// exitSHPid := fSf("%d", cmd.Process.Pid)
 
+			// check exited status
 			if err == nil {
 				info("<%s> is shutting down...", exePath)
 				return
@@ -179,8 +180,8 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 		}
 	}()
 
+	// check services starting status
 	time.Sleep(1 * time.Second)
-
 	select {
 	case msg := <-chStartErr:
 		warnOnErr("%v", msg)
@@ -188,8 +189,17 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 		go closeServers(false, closed)
 		<-closed
 		failOnErr("Hub Abort as: %v", msg)
+
 	case <-time.After(timeoutCloseAll * time.Second):
 		info("No Services Starting Errors Detected in %d(s)", timeoutCloseAll)
+	}
+
+	// monitor services status
+	chMStop := make(chan bool)
+	chMMsg := make(chan string)
+	go monitorServices(chMMsg, chMStop)
+	for msg := range chMMsg {
+		info(msg)
 	}
 }
 
@@ -238,5 +248,22 @@ func closeServers(check bool, closed chan<- struct{}) {
 			}
 
 		}(pid)
+	}
+}
+
+func monitorServices(msg chan<- string, stop <-chan bool) {
+	ticker := time.NewTicker(monitorInterval * time.Second)
+	for {
+		select {
+		case <-stop:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			for i, path := range qExePath {
+				if !proc.ExistRunningPS(path) {
+					msg <- fSf("<%s> process @ <%s> exited", path, qPid[i])
+				}
+			}
+		}
 	}
 }
