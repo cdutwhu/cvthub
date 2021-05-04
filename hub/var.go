@@ -9,18 +9,22 @@ import (
 	"github.com/cdutwhu/debog/fn"
 	"github.com/cdutwhu/gotil/net"
 	"github.com/digisan/gotk/io"
+	"github.com/digisan/gotk/mapslice"
 )
 
 var (
 	fSf           = fmt.Sprintf
 	fPln          = fmt.Println
 	fEf           = fmt.Errorf
+	sContains     = strings.Contains
 	sLastIndex    = strings.LastIndex
 	sTrim         = strings.Trim
 	sTrimLeft     = strings.TrimLeft
 	sSplit        = strings.Split
+	sJoin         = strings.Join
 	sHasPrefix    = strings.HasPrefix
 	sHasSuffix    = strings.HasSuffix
+	sReplaceAll   = strings.ReplaceAll
 	failOnErr     = fn.FailOnErr
 	failOnErrWhen = fn.FailOnErrWhen
 	warnOnErr     = fn.WarnOnErr
@@ -31,6 +35,7 @@ var (
 	scanStrLine   = io.StrLineScan
 	urlParamStr   = net.URLParamStr
 	localIP       = net.LocalIP
+	ksvs2slc      = mapslice.KsVs2Slc
 )
 
 const (
@@ -52,4 +57,26 @@ var (
 
 func init() {
 	log.SetFlags(log.LstdFlags) // overwrite "info/warn/fail" print style
+}
+
+func chunk2map(filepath, markstart, markend, sep, keyprefix string) map[string]string {
+	m := make(map[string]string)
+	chunkproc := false
+	_, err := scanLine(filepath, func(ln string) (bool, string) {
+		if sHasPrefix(ln, markstart) && !chunkproc {
+			chunkproc = true
+			return false, ""
+		}
+		if sHasPrefix(ln, markend) && chunkproc {
+			chunkproc = false
+			return false, ""
+		}
+		if chunkproc && sContains(ln, sep) {
+			ss := sSplit(ln, sep)
+			m[keyprefix+ss[0]] = sJoin(ss[1:], sep)
+		}
+		return false, ""
+	}, "")
+	failOnErr("%v", err)
+	return m
 }

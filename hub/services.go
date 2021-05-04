@@ -33,11 +33,18 @@ var (
 	mApiReDirPOST = make(map[string]string)
 )
 
-func at(items []string, i int) string {
-	return sTrim(items[i], " \t")
+func at(items []string, i int, mVars map[string]string) string {
+	item := sTrim(items[i], " \t")
+	ks, vs := ksvs2slc(mVars, "K-DESC")
+	for i, k := range ks {
+		item = sReplaceAll(item, k, vs[i])
+	}
+	return item
 }
 
 func loadSvrTable(subSvrFile string) {
+
+	mVar4Tbl := chunk2map(subSvrFile, "```", "```", "=", "$")
 
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
@@ -52,13 +59,13 @@ func loadSvrTable(subSvrFile string) {
 		failOnErrWhen(len(ss) != 7, "%v", "services.md table must have 7 columns, check it")
 
 		var (
-			exe    = at(ss, iExePath)
-			args   = at(ss, iArgs)
-			delay  = at(ss, iDelay)
-			api    = at(ss, iAPI)
-			reDir  = at(ss, iRedir)
-			method = at(ss, iMethod)
-			enable = at(ss, iEnable)
+			exe    = at(ss, iExePath, mVar4Tbl)
+			args   = at(ss, iArgs, mVar4Tbl)
+			delay  = at(ss, iDelay, mVar4Tbl)
+			api    = at(ss, iAPI, mVar4Tbl)
+			reDir  = at(ss, iRedir, mVar4Tbl)
+			method = at(ss, iMethod, mVar4Tbl)
+			enable = at(ss, iEnable, mVar4Tbl)
 		)
 
 		// only care about [ENABLE-true] rows
