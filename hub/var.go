@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/cdutwhu/debog/fn"
 	"github.com/cdutwhu/gotil/net"
@@ -19,11 +20,13 @@ var (
 	sTrimLeft     = strings.TrimLeft
 	sSplit        = strings.Split
 	sHasPrefix    = strings.HasPrefix
+	sHasSuffix    = strings.HasSuffix
 	failOnErr     = fn.FailOnErr
 	failOnErrWhen = fn.FailOnErrWhen
 	warnOnErr     = fn.WarnOnErr
-	warnOnErrWhen = fn.WarnOnErrWhen
 	info          = fn.Logger
+	l2c           = fn.EnableLog2C
+	l2f           = fn.EnableLog2F
 	scanLine      = io.FileLineScan
 	scanStrLine   = io.StrLineScan
 	urlParamStr   = net.URLParamStr
@@ -43,6 +46,8 @@ var (
 	loopLmtStartOne = timeoutStartOne * 1000 / loopInterval
 	loopLmtStartAll = timeoutStartAll * 1000 / loopInterval
 	loopLmtCloseAll = timeoutCloseAll * 1000 / loopInterval
+	logpath         = "./services_log/"
+	mtx4log         = &sync.Mutex{}
 )
 
 func init() {

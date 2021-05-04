@@ -7,3 +7,4 @@ set -e
 for f in $(find ./ -name '*.log' -or -name '*.doc'); do rm $f; done
 
 rm -f ./hub/hub
+rm -rf ./hub/log ./hub/services_log

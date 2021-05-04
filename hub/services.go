@@ -41,8 +41,15 @@ func loadSvrTable(subSvrFile string) {
 
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
+		ln = sTrim(ln, " \t")
+
+		// only deal with table rows
+		if !(sHasPrefix(ln, "|") && sHasSuffix(ln, "|")) {
+			return false, ""
+		}
+
 		ss := sSplit(sTrim(ln, "|"), "|") // remove markdown table left & right '|', then split by '|'
-		failOnErrWhen(len(ss) != 7, "%v", "services.md must be 7 columns, check it")
+		failOnErrWhen(len(ss) != 7, "%v", "services.md table must have 7 columns, check it")
 
 		var (
 			exe    = at(ss, iExePath)
@@ -54,6 +61,7 @@ func loadSvrTable(subSvrFile string) {
 			enable = at(ss, iEnable)
 		)
 
+		// only care about [ENABLE-true] rows
 		if enable != "true" {
 			return false, ""
 		}
@@ -125,7 +133,16 @@ func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{})
 			// start executable
 			cmdstr := fSf("cd %s && %s %s", filepath.Dir(exePath), exePath, qExeArgs[i])
 			cmd := exec.Command("/bin/sh", "-c", cmdstr)
-			_, err := cmd.CombinedOutput()
+			output, err := cmd.CombinedOutput()
+
+			// log each service's output to file, begin with command line string
+			mtx4log.Lock()
+			l2c(false)
+			l2f(true, fSf("%s%02d#%s.log", logpath, i, filepath.Base(exePath)))
+			info("%s %s\n%s", exePath, qExeArgs[i], string(output))
+			l2c(true)
+			l2f(false, "")
+			mtx4log.Unlock()
 
 			// exitSHPid := fSf("%d", cmd.Process.Pid)
 
