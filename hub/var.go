@@ -44,7 +44,7 @@ const (
 	timeoutStartOne = 6    // Second
 	timeoutStartAll = 10   // Second
 	timeoutCloseAll = 10   // Second
-	monitorInterval = 30   // Second
+	monitorInterval = 300  // Second
 )
 
 var (
