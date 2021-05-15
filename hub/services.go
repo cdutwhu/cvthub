@@ -33,18 +33,14 @@ var (
 	mApiReDirPOST = make(map[string]string)
 )
 
-func at(items []string, i int, mVars map[string]string) string {
-	item := sTrim(items[i], " \t")
-	ks, vs := ksvs2slc(mVars, "K-DESC")
-	for i, k := range ks {
-		item = sReplaceAll(item, k, vs[i])
-	}
-	return item
+func at(items []string, i int) string {
+	return envValued(sTrim(items[i], " \t"), nil) // use environment variables
 }
 
 func loadSvrTable(subSvrFile string) {
 
-	mVar4Tbl := chunk2map(subSvrFile, "```", "```", "=", "$")
+	// get variables defined in services.md & set them to environment variables
+	chunk2map(subSvrFile, "```export", "```", "=", true)
 
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
@@ -59,13 +55,13 @@ func loadSvrTable(subSvrFile string) {
 		failOnErrWhen(len(ss) != 7, "%v", "services.md table must have 7 columns, check it")
 
 		var (
-			exe    = at(ss, iExePath, mVar4Tbl)
-			args   = at(ss, iArgs, mVar4Tbl)
-			delay  = at(ss, iDelay, mVar4Tbl)
-			api    = at(ss, iAPI, mVar4Tbl)
-			reDir  = at(ss, iRedir, mVar4Tbl)
-			method = at(ss, iMethod, mVar4Tbl)
-			enable = at(ss, iEnable, mVar4Tbl)
+			exe    = at(ss, iExePath)
+			args   = at(ss, iArgs)
+			delay  = at(ss, iDelay)
+			api    = at(ss, iAPI)
+			reDir  = at(ss, iRedir)
+			method = at(ss, iMethod)
+			enable = at(ss, iEnable)
 		)
 
 		// only care about [ENABLE-true] rows
