@@ -1,0 +1,61 @@
+# V2
+# feeds service data maps into the alignment service
+# fetches data published by a reader to the q. below
+# then publishes the records to n3
+# 
+#
+
+http:
+  address: 0.0.0.0:34196
+  enabled: true
+  read_timeout: 5s
+  root_path: /benthos
+  debug_endpoints: false
+  cert_file: ""
+  key_file: ""
+
+# All config fields, showing default values
+input:
+  label: ""
+  nats_stream:
+    urls:
+      - nats://127.0.0.1:4222
+    cluster_id: test-cluster     # default NATS cluster
+    client_id: otf_publish_maps
+    queue: benthos_queue_align
+    subject: otf.maps.align
+    durable_name: otf.durable.align # benthos_offset
+    unsubscribe_on_close: false
+    start_from_oldest: true
+    max_inflight: 4096
+    ack_wait: 30s
+
+pipeline:
+  threads: 1
+  processors:
+    - bloblang: |
+        root = this.original
+
+# Common config fields, showing default values
+output:
+  label: ""
+  broker:
+    pattern: fan_out
+    outputs: 
+      - files:
+          path: ${PDM_ROOT}/audit/align/${!count("files")}-${!timestamp_unix_nano()}.json
+      - http_client:
+          url: http://127.0.0.1:1323/n3/publish 
+          verb: POST
+          headers:
+            Content-Type: application/json
+            Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJkZW1vIiwiY25hbWUiOiJhbGlnbm1lbnRNYXBzIiwidW5hbWUiOiJuc2lwT3RmIn0.Hxepr1xqGpUC6amoO8eTlszM-M2sakLhtwBYHSi-Cig
+          rate_limit: ""
+          timeout: 5s
+          max_in_flight: 1
+    batching:
+      count: 1000
+      period: 1s
+      processors: 
+        - archive:
+            format: json_array

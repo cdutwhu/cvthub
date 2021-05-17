@@ -6,7 +6,7 @@ require (
 	github.com/cdutwhu/debog v0.2.12
 	github.com/cdutwhu/gotil v0.1.31
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/digisan/gotk v0.0.17
+	github.com/digisan/gotk v0.0.19
 	github.com/gookit/color v1.4.2 // indirect
 	github.com/labstack/echo/v4 v4.3.0
 	github.com/mattn/go-colorable v0.1.8 // indirect

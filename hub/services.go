@@ -40,7 +40,7 @@ func at(items []string, i int) string {
 func loadSvrTable(subSvrFile string) {
 
 	// get variables defined in services.md & set them to environment variables
-	chunk2map(subSvrFile, "```export", "```", "=", true)
+	chunk2map(subSvrFile, "```export", "```", "=", true, true)
 
 	_, err := scanLine(subSvrFile, func(ln string) (bool, string) {
 
@@ -94,7 +94,7 @@ func loadSvrTable(subSvrFile string) {
 			case "POST":
 				mApiReDirPOST[api] = reDir
 			default:
-				failOnErr("%v", fEf("Only [GET POST] are supported, check mark-down table config"))
+				failOnErr("%v", fEf("At present, only [GET POST] are supported, check mark-down service table"))
 			}
 		}
 
@@ -105,7 +105,7 @@ func loadSvrTable(subSvrFile string) {
 	failOnErr("%v", err)
 }
 
-func launchServers(subSvrFile string, chkRunning bool, launched chan<- struct{}) {
+func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}) {
 
 	loadSvrTable(subSvrFile)
 

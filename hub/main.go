@@ -27,7 +27,7 @@ func main() {
 	}()
 
 	launched := make(chan struct{})
-	go launchServers("./services.md", false, launched)
+	go LaunchServices("./services.md", false, launched)
 	<-launched
 
 	// Start Service

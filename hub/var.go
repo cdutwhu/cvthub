@@ -39,9 +39,9 @@ var (
 const (
 	PORT            = 1423 // PORT : this server port
 	loopInterval    = 200  // Millisecond
-	timeoutStartOne = 6    // Second
-	timeoutStartAll = 10   // Second
-	timeoutCloseAll = 10   // Second
+	timeoutStartOne = 60   // Second
+	timeoutStartAll = 100  // Second
+	timeoutCloseAll = 100  // Second
 	monitorInterval = 300  // Second
 )
 
