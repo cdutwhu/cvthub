@@ -9,7 +9,7 @@ import (
 
 	"github.com/digisan/gotk/io"
 	proc "github.com/digisan/gotk/process"
-	"github.com/digisan/gotk/slice/ts"
+	"github.com/digisan/gotk/slice/ti"
 )
 
 // table header order
@@ -26,15 +26,39 @@ const (
 var (
 	qExePath      = make([]string, 0) // server may be repeated
 	qExeArgs      = make([]string, 0)
-	qStartDelay   = make([]int, 0)
+	qDelay        = make([]struct{ s, e int }, 0)
 	mutex         = &sync.Mutex{}
-	qPid          = make([]string, 0)
+	qPid          = make([]int, 0)
 	mApiReDirGET  = make(map[string]string)
 	mApiReDirPOST = make(map[string]string)
 )
 
 func at(items []string, i int) string {
 	return envValued(sTrim(items[i], " \t"), nil) // use environment variables
+}
+
+func str2delay(s string) struct{ s, e int } {
+	se := sSplitN(s, ",", 2)
+	switch len(se) {
+	case 2:
+		ns, err := strconv.Atoi(se[0])
+		if err != nil {
+			ns = 0
+		}
+		ne, err := strconv.Atoi(se[1])
+		if err != nil {
+			ne = 0
+		}
+		return struct{ s, e int }{ns, ne}
+	case 1:
+		ns, err := strconv.Atoi(se[0])
+		if err != nil {
+			ns = 0
+		}
+		return struct{ s, e int }{ns, 0}
+	default:
+		return struct{ s, e int }{0, 0}
+	}
 }
 
 func loadSvrTable(subSvrFile string) {
@@ -74,11 +98,7 @@ func loadSvrTable(subSvrFile string) {
 			failOnErr("%v", err)
 			qExePath = append(qExePath, exePath) // same executable could be invoked multiple times // ts.MkSet(append(qSvrExePath, exePath)...)
 			qExeArgs = append(qExeArgs, args)
-			nDelay, err := strconv.Atoi(delay)
-			if err != nil {
-				nDelay = 0
-			}
-			qStartDelay = append(qStartDelay, nDelay)
+			qDelay = append(qDelay, str2delay(delay))
 		}
 
 		// validate qExePath (already done)
@@ -105,6 +125,18 @@ func loadSvrTable(subSvrFile string) {
 	failOnErr("%v", err)
 }
 
+func StartExe(path, arg string) (string, error) {
+	cmdstr := fSf("cd %s && %s %s", filepath.Dir(path), path, arg)
+	cmd := exec.Command("/bin/sh", "-c", cmdstr)
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+
+func StopExe(pid int) error {
+	cmdstr := fSf("kill -15 %d", pid)
+	return exec.Command("/bin/sh", "-c", cmdstr).Run()
+}
+
 func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}) {
 
 	loadSvrTable(subSvrFile)
@@ -118,7 +150,7 @@ func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}
 
 		// start executable
 		go func(i int, exePath string) {
-			time.Sleep(time.Duration(qStartDelay[i]) * time.Second)
+			time.Sleep(time.Duration(qDelay[i].s) * time.Second)
 			info("<%s> is starting...", exePath)
 
 			// check existing running PS
@@ -134,15 +166,13 @@ func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}
 			ok <- struct{}{}
 
 			// start executable
-			cmdstr := fSf("cd %s && %s %s", filepath.Dir(exePath), exePath, qExeArgs[i])
-			cmd := exec.Command("/bin/sh", "-c", cmdstr)
-			output, err := cmd.CombinedOutput()
+			output, err := StartExe(exePath, qExeArgs[i])
 
 			// log each service's output to file, begin with command line string
 			mtx4log.Lock()
 			l2c(false)
 			l2f(true, fSf("%s%02d#%s.log", logpath, i, filepath.Base(exePath)))
-			info("%s %s\n%s", exePath, qExeArgs[i], string(output))
+			info("%s %s\n%s", exePath, qExeArgs[i], output)
 			l2c(true)
 			l2f(false, "")
 			mtx4log.Unlock()
@@ -172,7 +202,7 @@ func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}
 				time.Sleep(loopInterval * time.Millisecond)
 				if pidGrp := proc.GetRunningPID(exePath); len(pidGrp) > 0 {
 					mutex.Lock()
-					qPid = ts.MkSet(append(qPid, pidGrp...)...)
+					qPid = ti.MkSet(append(qPid, pidGrp...)...)
 					info("<%s> is running...", exePath)
 					mutex.Unlock()
 					break
@@ -249,25 +279,25 @@ func closeServers(check bool, closed chan<- struct{}) {
 		}
 	}()
 
-	for _, pid := range qPid {
+	for i, pid := range qPid {
 		time.Sleep(20 * time.Millisecond)
 
-		go func(pid string) {
-			cmdstr := fSf("kill -15 %s", pid)
-			err := exec.Command("/bin/sh", "-c", cmdstr).Run()
+		go func(i, pid int) {
+			time.Sleep(time.Duration(qDelay[i].e) * time.Second)
+
+			err := StopExe(pid)
 			if err == nil {
-				info("PID<%s> is shutting down...", pid)
+				info("PID<%d> is shutting down...", pid)
 				return
 			}
-			msg := fSf("%v", err)
-			switch msg {
+			switch fSf("%v", err) {
 			case "exit status 1":
-				info("PID<%s> is shutting down...<%s>", pid, msg)
+				info("PID<%d> is shutting down...<%v>", pid, err)
 			default:
-				failOnErr("PID<%s> shutdown error @Error: %v", pid, err)
+				failOnErr("PID<%d> shutdown error @Error: %v", pid, err)
 			}
 
-		}(pid)
+		}(i, pid)
 	}
 }
 

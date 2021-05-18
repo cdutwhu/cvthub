@@ -20,6 +20,7 @@ var (
 	sTrim         = strings.Trim
 	sTrimLeft     = strings.TrimLeft
 	sSplit        = strings.Split
+	sSplitN       = strings.SplitN
 	sHasPrefix    = strings.HasPrefix
 	sHasSuffix    = strings.HasSuffix
 	failOnErr     = fn.FailOnErr

@@ -31,4 +31,4 @@ cp $OTF_TESTDATA/pdm_testdata/maps/levelMaps/scaleMap.csv  $PDM_ROOT/in/maps/lev
 # sleep 5
 # cp $OTF_TESTDATA/pdm_testdata/maps/levelMaps/scoresMap.csv  $PDM_ROOT/in/maps/level
 
-sleep 5m
+sleep 20m

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,21 +16,42 @@ import (
 	"github.com/postfinance/single"
 )
 
+func asyncExitListener() {
+	for {
+		exitcmd := ""
+		if _, err := fmt.Scanf("%s", &exitcmd); err == nil {
+			switch exitcmd {
+			case "quit", "exit":
+				closed := make(chan struct{})
+				go closeServers(true, closed)
+				<-closed
+				err := StopExe(os.Getpid())
+				if err != nil {
+					log.SetFlags(log.Lshortfile | log.LstdFlags)
+					log.Println(err)
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	one, err := single.New("hub", single.WithLockPath("/tmp"))
 	failOnErr("%v", err)
 	failOnErr("%v", one.Lock())
 	defer func() {
-		closed := make(chan struct{})
-		go closeServers(true, closed)
-		<-closed
 		failOnErr("%v", one.Unlock())
 		fPln("Hub Exits")
 	}()
 
+	// "quit", "exit" to exit hub
+	go asyncExitListener()
+
 	launched := make(chan struct{})
 	go LaunchServices("./services.md", false, launched)
 	<-launched
+
+	fPln("<--------------- 'exit' or 'quit' to end hub --------------->")
 
 	// Start Service
 	done := make(chan string)
@@ -40,7 +63,9 @@ func main() {
 }
 
 func shutdownAsync(e *echo.Echo, sig <-chan os.Signal, done chan<- string) {
-	<-sig
+	<-sig // got ctrl+c
+
+	// close http
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	failOnErr("%v", e.Shutdown(ctx))
