@@ -10,4 +10,4 @@ rm -f ./hub/hub
 rm -rf ./hub/log ./hub/services_log
 rm -rf ./otfdata ./sh/otfdata
 
-rm -rf /home/qmiao/Desktop/OTF/n3/n3-web/server/n3w/contexts
+rm -r /home/qmiao/Desktop/OTF/n3/n3-web/server/n3w/contexts

@@ -78,6 +78,11 @@ func loadSvrTable(subSvrFile string) {
 		ss := sSplit(sTrim(ln, "|"), "|") // remove markdown table left & right '|', then split by '|'
 		failOnErrWhen(len(ss) != 7, "%v", "services.md table must have 7 columns, check it")
 
+		// only deal with [ENABLE-true] rows
+		if at(ss, iEnable) != "true" {
+			return false, ""
+		}
+
 		var (
 			exe    = at(ss, iExePath)
 			args   = at(ss, iArgs)
@@ -85,13 +90,7 @@ func loadSvrTable(subSvrFile string) {
 			api    = at(ss, iAPI)
 			reDir  = at(ss, iRedir)
 			method = at(ss, iMethod)
-			enable = at(ss, iEnable)
 		)
-
-		// only care about [ENABLE-true] rows
-		if enable != "true" {
-			return false, ""
-		}
 
 		if exe != "" {
 			exePath, err := io.AbsPath(exe, true) // validate each executable
@@ -219,7 +218,7 @@ func LaunchServices(subSvrFile string, chkRunning bool, launched chan<- struct{}
 		I := 0
 		for {
 			time.Sleep(loopInterval * time.Millisecond)
-			if len(qExePath) == len(qPid) {
+			if len(qExePath) == len(qPid) && len(qDelay) == len(qPid) {
 				launched <- struct{}{}
 				break
 			}
@@ -311,7 +310,7 @@ func monitorServices(msg chan<- string, stop <-chan bool) {
 		case <-ticker.C:
 			for i, path := range qExePath {
 				if !proc.ExistRunningPS(path) {
-					msg <- fSf("<%s> process @ <%s> exited", path, qPid[i])
+					msg <- fSf("<%s> process @ <%d> exited", path, qPid[i])
 				}
 			}
 		}

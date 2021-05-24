@@ -1,0 +1,249 @@
+#
+# takes assessment results published by a reader and passes
+# them through the alignment to NNLP services
+#
+# writes resulting files both to audit output (folder)
+# and on as messages to the next nats streaming q. for
+# pickup by the levelling workflow
+#
+http:
+  address: 0.0.0.0:34191
+  enabled: true
+  read_timeout: 5s
+  root_path: /benthos
+  debug_endpoints: false
+
+input:
+  label: ""
+  nats_stream:
+    urls:
+      - nats://127.0.0.1:4222
+    cluster_id: test-cluster
+    client_id: otf_align_benthos_client
+    queue: benthos_queue
+    subject: otf.ingest
+    durable_name: benthos_offset
+    unsubscribe_on_close: false
+    start_from_oldest: true
+    max_inflight: 1024
+    ack_wait: 30s
+
+pipeline:
+  processors:
+    - workflow:
+        order: [ 
+          [ brightpath_composite_token ], 
+          [ brightpath_align, mathspathway_align ], 
+          [ brightpath_map, mathspathway_map ], 
+          [ extract_proglevel ], 
+          [ brightpath_level ],
+        ]
+
+        # branches:
+        #   brightpath_composite_token:
+        #     request_map: |
+        #       root = if this.original.score.type() == "null" {
+        #           deleted()
+        #       }
+        #     processors:
+        #       - bloblang: |
+        #           root = this
+        #           meta.compToken = "%s %v".format(original.test.scale, original.score)
+        #     result_map: |
+        #       otf.compToken = meta.compToken
+
+        #   brightpath_align:
+        #     request_map: |
+        #       root = if this.original.score.type() == "null" {
+        #           deleted()
+        #       }
+        #       alignMethod = meta.alignMethod
+        #       alignCapability = meta.capability
+        #       alignToken = otf.compToken
+        #     processors:
+        #       - http:
+        #           parallel: false
+        #           url: http://${ALIGNER_HOST}:1324/align
+        #           headers:
+        #             Content-Type: application/json
+        #           verb: POST
+        #     result_map: |
+        #       otf.align.method = alignMethod
+        #       otf.align.token = alignToken
+        #       otf.align.alignments = alignments
+        #       otf.align.alignmentServiceID = alignServiceID
+        #       otf.align.alignmentServiceName = alignServiceName
+        #       otf.align.capability = alignCapability
+
+        #   brightpath_map:
+        #     request_map: |
+        #       root = if this.meta.providerName != "BrightPath" {
+        #           deleted()
+        #       }
+        #     processors: 
+        #       - bloblang: |
+        #           root = this
+        #     result_map: |
+        #       otf.id.studentID = original.student_participation.enrolment.student.identifiers.0.identifier
+        #       otf.id.studentGivenName = original.student_participation.enrolment.student.first_name
+        #       otf.id.studentFamilyName = original.student_participation.enrolment.student.last_name
+
+processor_resources:
+
+####################################################################################################
+
+  - label: brightpath_composite_token
+    branch:
+      request_map: |
+        root = if meta.providerName != "BrightPath" || original.score.type() == "null" {
+          deleted()
+        }
+      processors:
+        - bloblang: |
+            root = this
+            meta.compToken = "%s %v".format(original.test.scale, original.score)
+      result_map: |
+        otf.compToken = meta.compToken
+
+  - label: brightpath_align
+    branch:
+      request_map: |
+        root = if meta.providerName != "BrightPath" || original.score.type() == "null" {
+          deleted()
+        }
+      processors:
+        - bloblang: |
+            alignMethod = meta.alignMethod
+            alignCapability = meta.capability
+            alignToken = otf.compToken
+        - http:
+            parallel: false
+            url: http://${ALIGNER_HOST}:1324/align
+            headers:
+              Content-Type: application/json
+            verb: POST
+      result_map: |
+        otf.align.method = alignMethod
+        otf.align.token = alignToken
+        otf.align.alignments = alignments
+        otf.align.alignmentServiceID = alignServiceID
+        otf.align.alignmentServiceName = alignServiceName
+        otf.align.capability = alignCapability
+
+  - label: brightpath_map
+    branch:
+      request_map: |
+        root = if meta.providerName != "BrightPath" {
+          deleted()
+        }
+      processors: 
+        - bloblang: |
+            root = this
+      result_map: |        
+        otf.id.studentID = original.student_participation.enrolment.student.identifiers.0.identifier
+        otf.id.studentGivenName = original.student_participation.enrolment.student.first_name
+        otf.id.studentFamilyName = original.student_participation.enrolment.student.last_name
+  
+  - label: extract_proglevel
+    branch:
+      request_map: |
+        root = if otf.align.alignments == null {
+          deleted()
+        }
+      processors:
+        - bloblang: |
+            root = this
+            meta.progressionLevel = otf.align.alignments.index(0).progressionLevel
+            meta.judgement = "partial"
+      result_map: | 
+        otf.progressionLevel = meta.progressionLevel
+        otf.level.assessmentToken = meta.judgement
+
+  - label: brightpath_level
+    branch:
+      request_map: |
+        root = if meta.providerName != "BrightPath" || otf.align.alignments == null {
+          deleted()
+        }
+      processors: 
+        - bloblang: |
+            levelMethod = meta.levelMethod
+            levelProgLevel = otf.progressionLevel
+            assessmentToken = original.test.scale 
+            assessmentScore = original.score
+        - http:
+            parallel: false
+            url: http://${LEVELLER_HOST}:1327/level
+            headers:
+              Content-Type: application/json
+            verb: POST
+      result_map: |
+        otf.level.levelMethod = levelMethod
+        otf.level.levelServiceID = levelServiceID
+        otf.level.levelServiceName = levelServiceName
+        otf.level.calculatedScore = calculatedLevel
+        otf.level.assessmentScore = assessmentScore
+        otf.level.assessmentToken = assessmentToken
+
+####################################################################################################
+
+  - label: mathspathway_align
+    branch:
+      request_map: |
+        root = if meta.providerName != "MathsPathway" {
+          deleted()
+        }
+      processors:
+        - bloblang: |
+            alignMethod = meta.alignMethod
+            alignCapability = meta.capability
+            alignToken = original.module_id
+        - http:
+            parallel: false
+            url: http://${ALIGNER_HOST}:1324/align
+            headers:
+              Content-Type: application/json
+            verb: POST
+      result_map: |
+        otf.align.method = alignMethod
+        otf.align.token = alignToken
+        otf.align.alignments = alignments
+        otf.align.alignmentServiceID = alignServiceID
+        otf.align.alignmentServiceName = alignServiceName
+        otf.align.capability = alignCapability
+
+  - label: mathspathway_map
+    branch:
+      request_map: |
+        root = if meta.providerName != "MathsPathway" {
+          deleted()
+        }
+      processors:
+        - bloblang: |
+            root = this
+      result_map: |
+        otf.id.studentID = original.student_id
+        otf.id.studentFullName = "not provided"
+
+####################################################################################################
+
+# Common config fields, showing default values
+output:
+  label: ""
+  broker:
+    pattern: fan_out
+    outputs:
+      - files:
+          path: ${PDM_ROOT}/audit/${!count("files")}-${!timestamp_unix_nano()}.json
+      # - nats_stream:
+      #     urls:
+      #       - nats://${NATS_HOST}:4222
+      #     cluster_id: test-cluster
+      #     subject: otf.aligned
+      #     client_id: otf_aligned_publish
+  processors:
+    # don't save any files that did not get processed by the aligner
+    - bloblang: |
+        root = if !this.exists("otf.align.token") {
+          deleted()
+        }

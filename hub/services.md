@@ -2,7 +2,6 @@
 
 ```export
 NATS_HOST=127.0.0.1
-NATS_PORT=4222
 N3_HOST=127.0.0.1
 N3_PORT=1323
 CLASSIFIER_HOST=127.0.0.1
@@ -26,8 +25,8 @@ BENTHOS=/usr/local/bin/benthos
 
 | PATH_OF_SERVICE_EXE | ARGUMENTS                                                                | DELAY | API                      | REDIRECT                                        | METHOD | ENABLE |
 | :------------------ | :----------------------------------------------------------------------- | :---: | :----------------------- | :---------------------------------------------- | :----: | :----: |
-| $NSS                |                                                                          | 0,15  |                          |                                                 |        |  true  |
-| $N3                 |                                                                          |  1,3  | /n3/admin/newdemocontext | http://$N3_HOST:$N3_PORT/admin/newdemocontext   |  POST  |  true  |
+| $NSS                |                                                                          | 0,10  |                          |                                                 |        |  true  |
+| $N3                 |                                                                          |  1,2  | /n3/admin/newdemocontext | http://$N3_HOST:$N3_PORT/admin/newdemocontext   |  POST  |  true  |
 |                     |                                                                          |       | /n3/graphgl              | http://$N3_HOST:$N3_PORT/n3/graphgl             |  POST  |  true  |
 |                     |                                                                          |       | /n3/publish              | http://$N3_HOST:$N3_PORT/n3/publish             |  POST  |  true  |
 | $OTF_READER         | --folder=$PDM_ROOT/in/maps/align --config=./config/alignMaps_config.json |   2   |                          |                                                 |        |  true  |
@@ -46,8 +45,7 @@ BENTHOS=/usr/local/bin/benthos
 |                     |                                                                          |       | /aligner/align           | http://$ALIGNER_HOST:$ALIGNER_PORT/align        |  POST  |  true  |
 | $OTF_LEVEL          | --port=$LEVELLER_PORT                                                    |   2   | /leveler                 | http://$LEVELLER_HOST:$LEVELLER_PORT/           |  GET   |  true  |
 |                     |                                                                          |       | /leveler/level           | http://$LEVELLER_HOST:$LEVELLER_PORT/level      |  POST  |  true  |
-| ./otf-prepare.sh    |                                                                          |   3   |                          |                                                 |        |  true  |
-| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/alignMapsV2.yaml                         |   4   |                          |                                                 |        |  true  |
-| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/alignDataV2.yaml                         |   4   |                          |                                                 |        | false  |
-| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/levelMapsV2.yaml                         |   4   |                          |                                                 |        |  true  |
-| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/levelDataV2.yaml                         |   4   |                          |                                                 |        | false  |
+| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/maps/align.yaml                          |   3   |                          |                                                 |        |  true  |
+| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/maps/level.yaml                          |   3   |                          |                                                 |        |  true  |
+| $BENTHOS            | -c ~/Desktop/OTF/cvthub/benthos/data.yaml                                |   3   |                          |                                                 |        |  true  |
+| ./otf-prepare.sh    |                                                                          |   0   |                          |                                                 |        |  true  |
